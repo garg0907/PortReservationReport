@@ -753,7 +753,24 @@
           return res;
         });
 
-        const os = XLSX.utils.aoa_to_sheet([headers, ...output]);
+        // Calculate total of all Rate values
+const totalRate = output.reduce((sum, row) => {
+    const rate = Number(row[rateIdx] || 0);
+    return sum + rate;
+}, 0);
+
+// Create Total row
+const totalRow = new Array(headers.length).fill("");
+
+totalRow[rateIdx - 1] = "Total";
+totalRow[rateIdx] = totalRate;
+
+// Create worksheet including Total row
+const os = XLSX.utils.aoa_to_sheet([
+    headers,
+    ...output,
+    totalRow
+]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, os, "Data");
         XLSX.writeFile(wb, `${terminal}_${customer}_data.xlsx`);
