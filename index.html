@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terminal Data Handler</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      background-color: #f4f7f9;
+      color: #333;
+      line-height: 1.5;
+    }
+	
+	.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-logo {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+}
+
+.header-brand h1 {
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .header-brand {
+        justify-content: center;
+    }
+
+    .header-logo {
+        height: 32px;
+    }
+}
+
+    /* Header / navigation */
+    header {
+      background: #1f3a5f;
+      color: #fff;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      margin: 12px 0;
+      white-space: nowrap;
+    }
+
+    nav {
+      display: flex;
+    }
+
+    nav button {
+      background: transparent;
+      border: none;
+      color: #cfd8e3;
+      font-size: 15px;
+      padding: 16px 18px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    nav button:hover {
+      color: #fff;
+    }
+
+    nav button.active {
+      color: #fff;
+      border-bottom-color: #ffb300;
+      font-weight: bold;
+    }
+
+    main {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      display: none;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    /* Form Elements */
+    .controls-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    button,
+    select {
+      padding: 10px 18px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+    }
+
+    select {
+      min-width: 200px;
+      cursor: pointer;
+    }
+
+    button {
+      background-color: #1f3a5f;
+      color: white;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #2c5282;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    #uploadButton {
+      background-color: #2d3748;
+    }
+
+    #downloadButton {
+      background-color: #38a169;
+    }
+
+    #downloadButton:hover:not(:disabled) {
+      background-color: #2f855a;
+    }
+
+    /* Status Messages */
+    #status, #ratesStatus {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    #status:not(:empty) {
+      background: #ebf8ff;
+      border: 1px solid #bee3f8;
+      color: #2b6cb0;
+    }
+
+    #rateDisplay {
+      margin-top: 12px;
+      font-size: 14px;
+      font-style: italic;
+      white-space: pre-line;
+      background: #fffaf0;
+      border-left: 4px solid #f6ad55;
+      padding: 10px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Rates screen */
+    .terminal-block {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      background: #f8fafc;
+    }
+
+    .terminal-block h3 {
+      margin: 0 0 15px;
+      color: #2d3748;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      margin-top: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table.rates-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    table.rates-table th,
+    table.rates-table td {
+      border: 1px solid #e2e8f0;
+      padding: 10px;
+      text-align: left;
+      font-size: 13px;
+      min-width: 80px;
+    }
+
+    table.rates-table th {
+      background: #edf2f7;
+      font-weight: 600;
+    }
+
+    table.rates-table input {
+      width: 100%;
+      max-width: 80px;
+      padding: 6px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+    }
+
+    .rate-input {
+      width: 100px;
+      padding: 8px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    #cancelRatesButton {
+      background-color: #e53e3e;
+    }
+
+    /* Mobile Adjustments */
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      header h1 {
+        text-align: center;
+        margin-bottom: 0;
+      }
+
+      nav {
+        justify-content: center;
+      }
+
+      nav button {
+        flex: 1;
+        padding: 12px 10px;
+      }
+
+      .controls-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      select, button {
+        width: 100%;
+        margin-right: 0;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-brand">
+    <img src="logo.png" alt="Company Logo" class="header-logo">
+    <h1>Terminal Drop-Off Report</h1>
+</div>
+    <nav>
+      <button type="button" id="navReports" class="active">Reports</button>
+      <button type="button" id="navRates">Rates</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ REPORTS SCREEN ============ -->
+    <section id="screenReports" class="screen active">
+      <div class="controls-group">
+        <select id="terminalSelect" aria-label="Select terminal">
+          <option value="">Select terminal</option>
+          <option value="Centerm">Centerm</option>
+          <option value="Vanterm">Vanterm</option>
+          <option value="Fraser Surrey Dock">Fraser Surrey Dock</option>
+          <option value="Delta Port">Delta Port</option>
+        </select>
+
+        <select id="customerSelect" aria-label="Select customer" disabled>
+          <option value="">Select customer</option>
+          <option value="MLMP">MLMP</option>
+          <option value="Skook">Skook</option>
+          <option value="Kruger">Kruger</option>
+          <option value="Mercer Peace">Mercer Peace</option>
+          <option value="Mercer Celgar">Mercer Celgar</option>
+          <option value="Cariboo">Cariboo</option>
+          <option value="Mondi">Mondi</option>
+          <option value="Millar Western">Millar Western</option>
+        </select>
+
+        <input type="file" id="fileInput" class="visually-hidden" accept=".xlsx,.xls,.csv" />
+
+        <button type="button" id="uploadButton">Upload File</button>
+        <button type="button" id="downloadButton" disabled>Download Processed</button>
+      </div>
+      
+      <p id="status" aria-live="polite"></p>
+      <p id="rateDisplay" aria-live="polite" hidden></p>
+    </section>
+
+    <!-- ============ RATES SCREEN ============ -->
+    <section id="screenRates" class="screen">
+      <div class="controls-group">
+        <select id="ratesCustomerSelect" aria-label="Select customer for rates">
+          <option value="">Select customer</option>
+          <option value="MLMP">MLMP</option>
+          <option value="Skook">Skook</option>
+          <option value="Kruger">Kruger</option>
+          <option value="Mercer Peace">Mercer Peace</option>
+          <option value="Mercer Celgar">Mercer Celgar</option>
+          <option value="Cariboo">Cariboo</option>
+          <option value="Mondi">Mondi</option>
+          <option value="Millar Western">Millar Western</option>
+        </select>
+      </div>
+
+      <div id="ratesContainer"></div>
+
+      <div class="actions">
+        <button type="button" id="editRatesButton" hidden>Edit Rates</button>
+        <button type="button" id="saveRatesButton" hidden>Save Changes</button>
+        <button type="button" id="cancelRatesButton" hidden>Cancel</button>
+      </div>
+      <p id="ratesStatus" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Firebase (module) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyALSqXm1_S9rbNrlVYSk-xrhS0yFdAgxXc",
+      authDomain: "port-reservations-c10f4.firebaseapp.com",
+      databaseURL: "https://port-reservations-c10f4-default-rtdb.firebaseio.com",
+      projectId: "port-reservations-c10f4",
+      storageBucket: "port-reservations-c10f4.firebasestorage.app",
+      messagingSenderId: "934263632295",
+      appId: "1:934263632295:web:ce0a5f3647ee30babf0682"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window.firebaseDb = db;
+    window.firebaseRef = ref;
+    window.firebaseSet = set;
+    window.firebasePush = push;
+    window.firebaseOnValue = onValue;
+    window.firebaseUpdateRates = (changes) => update(ref(db), changes);
+
+    const seedRatesB = {
+      "MLMP": 67, "Skook": 67, "Kruger": 67,
+      "Mercer Peace": 64, "Mercer Celgar": 64,
+      "Cariboo": 67, "Mondi": 67, "Millar Western": 67
+    };
+
+    get(ref(db, "rates")).then((snapshot) => {
+      if (!snapshot.exists()) {
+        return set(ref(db, "rates"), {
+          "Vanterm": seedRatesB,
+          "Delta Port": seedRatesB
+        });
+      }
+    }).catch((e) => console.error("Rate seeding failed:", e));
+
+    const slot = (r1, r2) => ({
+      type: "slots",
+      slots: [
+        { start: "08:00", end: "15:00", rate: r1 },
+        { start: "16:30", end: "23:30", rate: r2 }
+      ]
+    });
+
+    const SLOT_KEYS = ["8-9","9-10","10-11","11-12","13-14","14-15","15-16","17-18","18-19","19-20","20-21","21-22","22-23","23-24"];
+    const hourly = (values) => Object.fromEntries(SLOT_KEYS.map((k, i) => [k, values[i]]));
+
+    const centermStandard = {
+      type: "daytime",
+      days: {
+        weekday:  hourly([88, 88, 68, 68, 68, 68, 68, 38, 38, 18, 18, 18, 18, 18]),
+        saturday: hourly([88, 88, 68, 68, 68, 68, 68,  0,  0,  0,  0,  0,  0,  0]),
+        sunday:   hourly([68, 68, 68, 68, 68, 68, 68,  0,  0,  0,  0,  0,  0,  0])
+      }
+    };
+
+    const centermMercer = {
+      type: "daytime",
+      days: {
+        weekday:  hourly([85, 85, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65]),
+        saturday: hourly([85, 85, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65]),
+        sunday:   hourly([85, 85, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65])
+      }
+    };
+
+    const centermCariboo = {
+      type: "daytime",
+      days: {
+        weekday:  hourly([61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61]),
+        saturday: hourly([61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61]),
+        sunday:   hourly([61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61])
+      }
+    };
+
+    const seedRatesA = {
+      "Fraser Surrey Dock": {
+        "MLMP": slot(52.5, 0), "Skook": slot(52.5, 0), "Kruger": slot(52.5, 0),
+        "Mercer Peace": slot(56, 0), "Mercer Celgar": slot(56, 0),
+        "Cariboo": slot(56, 56), "Mondi": slot(56, 0), "Millar Western": slot(56, 0)
+      },
+      "Centerm": {
+        "MLMP": centermStandard, "Skook": centermStandard, "Kruger": centermStandard,
+        "Mercer Peace": centermMercer, "Mercer Celgar": centermMercer,
+        "Cariboo": centermCariboo, "Mondi": centermStandard, "Millar Western": centermStandard
+      }
+    };
+
+    get(ref(db, "ratesGroupA")).then((snapshot) => {
+      const existing = snapshot.val();
+      if (!existing) {
+        return set(ref(db, "ratesGroupA"), seedRatesA);
+      }
+    }).catch((e) => console.error("Group A rate seeding failed:", e));
+
+    window.terminalRates = {};
+    onValue(ref(db, "rates"), (snapshot) => {
+      window.terminalRates = snapshot.val() || {};
+      document.dispatchEvent(new Event("ratesUpdated"));
+    });
+
+    window.terminalRatesGroupA = {};
+    onValue(ref(db, "ratesGroupA"), (snapshot) => {
+      window.terminalRatesGroupA = snapshot.val() || {};
+      document.dispatchEvent(new Event("ratesUpdated"));
+    });
+  </script>
+
+  <script>
+    const navReports = document.getElementById("navReports");
+    const navRates = document.getElementById("navRates");
+    const screenReports = document.getElementById("screenReports");
+    const screenRates = document.getElementById("screenRates");
+
+    function showScreen(name) {
+      const isReports = name === "reports";
+      screenReports.classList.toggle("active", isReports);
+      screenRates.classList.toggle("active", !isReports);
+      navReports.classList.toggle("active", isReports);
+      navRates.classList.toggle("active", !isReports);
+    }
+
+    navReports.addEventListener("click", () => showScreen("reports"));
+    navRates.addEventListener("click", () => showScreen("rates"));
+
+    const fileInput = document.getElementById("fileInput");
+    const terminalSelect = document.getElementById("terminalSelect");
+    const customerSelect = document.getElementById("customerSelect");
+    const uploadButton = document.getElementById("uploadButton");
+    const downloadButton = document.getElementById("downloadButton");
+    const status = document.getElementById("status");
+    const rateDisplay = document.getElementById("rateDisplay");
+
+    let uploadedWorkbook = null;
+    let uploadedTerminal = null;
+
+    const groupBTerminals = ["Vanterm", "Delta Port"];
+    const groupATerminals = ["Centerm", "Fraser Surrey Dock"];
+    const GROUP_A_TIME_COLUMN_INDEX = 5;
+
+    const configGroupA = {
+      columns: [4, 5, 6, 7, 8, 9, 15, 16, 22, 23, 24, 26],
+      fixedHeaderRowIndex: 0,
+      includeTerminal: true
+    };
+
+    const configGroupB = {
+      columns: [1, 2, 3, 4, 5, 6, 7, 8],
+      fixedHeaderRowIndex: null,
+      includeTerminal: false
+    };
+
+    function detectHeaderRowIndex(rows, columns) {
+      const knownHeaderKeywords = ["date", "type", "status", "truck", "appt", "line", "equipment", "booking", "transaction", "doc"];
+      for (let i = 0; i < Math.min(rows.length, 20); i++) {
+        const row = rows[i] || [];
+        const values = columns.map(index => String(row[index] ?? "").trim().toLowerCase());
+        const keywordMatch = values.some(v => knownHeaderKeywords.some(keyword => v.includes(keyword)));
+        if (keywordMatch) return i;
+      }
+      return 0;
+    }
+
+    function getRate(terminal, customer) {
+      const value = (window.terminalRates || {})[terminal]?.[customer];
+      return (value === undefined || value === null || value === "") ? null : Number(value);
+    }
+
+    function getGroupARateConfig(terminal, customer) {
+      const node = window.terminalRatesGroupA?.[terminal]?.[customer];
+      if (!node) return null;
+      if (node.type === "daytime" && node.days) return node;
+      if (Array.isArray(node.slots) && node.slots.length) return { type: "slots", slots: node.slots };
+      return null;
+    }
+
+    function timeStringToMinutes(str) {
+      const match = String(str).match(/(\d{1,2}):(\d{2})/);
+      if (!match) return null;
+      let hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const lower = String(str).toLowerCase();
+      if (/pm/.test(lower) && hours < 12) hours += 12;
+      if (/am/.test(lower) && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    }
+
+    function extractMinutes(value) {
+      if (value instanceof Date && !isNaN(value)) return value.getHours() * 60 + value.getMinutes();
+      if (typeof value === "number") return Math.round((value - Math.floor(value)) * 24 * 60);
+      return timeStringToMinutes(value);
+    }
+
+    function extractDate(value) {
+      if (value instanceof Date && !isNaN(value)) return value;
+      if (typeof value === "number" && value > 0) return new Date(Math.round((value - 25569) * 86400 * 1000));
+      const parsed = new Date(String(value));
+      return isNaN(parsed) ? null : parsed;
+    }
+
+    function dayTypeOf(dateValue) {
+      const d = extractDate(dateValue);
+      if (!d) return null;
+      const day = d.getDay();
+      if (day === 0) return "sunday";
+      if (day === 6) return "saturday";
+      return "weekday";
+    }
+
+    function pickSlotRate(slots, cellValue) {
+      const minutes = extractMinutes(cellValue);
+      if (minutes === null) return "";
+      for (const s of slots) {
+        const start = timeStringToMinutes(s.start);
+        const end = timeStringToMinutes(s.end);
+        if (start !== null && end !== null && minutes >= start && minutes <= end) return Number(s.rate);
+      }
+      return "";
+    }
+
+    function pickDaytimeRate(rateConfig, dateValue, timeValue) {
+      const dayType = dayTypeOf(dateValue);
+      if (!dayType) return "";
+      const dayRates = rateConfig.days?.[dayType];
+      if (!dayRates) return "";
+      const minutes = extractMinutes(timeValue);
+      if (minutes === null) return "";
+      for (const key of Object.keys(dayRates)) {
+        const match = key.match(/^(\d{1,2})-(\d{1,2})$/);
+        if (!match) continue;
+        if (minutes >= Number(match[1]) * 60 && minutes < Number(match[2]) * 60) return Number(dayRates[key]);
+      }
+      return "";
+    }
+
+    function pickGroupARate(rateConfig, dateValue, timeValue) {
+      return rateConfig.type === "daytime" ? pickDaytimeRate(rateConfig, dateValue, timeValue) : pickSlotRate(rateConfig.slots, timeValue);
+    }
+
+    function formatDaytimeSummary(dayRates) {
+      const entries = Object.keys(dayRates).map(k => {
+        const m = k.match(/^(\d{1,2})-(\d{1,2})$/);
+        return m ? { start: Number(m[1]), end: Number(m[2]), rate: Number(dayRates[k]) } : null;
+      }).filter(Boolean).sort((a, b) => a.start - b.start);
+      const groups = [];
+      for (const e of entries) {
+        const last = groups[groups.length - 1];
+        if (last && last.rate === e.rate && last.end === e.start) last.end = e.end;
+        else groups.push({ ...e });
+      }
+      return groups.map(g => `${g.start}-${g.end}: $${g.rate}`).join(" | ");
+    }
+
+    function refreshRateDisplay() {
+      const terminal = terminalSelect.value;
+      const customer = customerSelect.value;
+      if (!terminal || !customer) {
+        rateDisplay.hidden = true;
+        return;
+      }
+      rateDisplay.hidden = false;
+      if (groupBTerminals.includes(terminal)) {
+        const existing = getRate(terminal, customer);
+        rateDisplay.textContent = existing !== null ? `Rate for ${customer} at ${terminal}: $${existing}` : `No rate found for ${customer} at ${terminal}.`;
+      } else {
+        const config = getGroupARateConfig(terminal, customer);
+        if (!config) {
+          rateDisplay.textContent = `No rates found for ${customer} at ${terminal}.`;
+        } else if (config.type === "daytime") {
+    let summaryLines = [`Rates for ${customer} at ${terminal}:`];
+
+    ["weekday", "saturday", "sunday"].forEach(day => {
+        if (config.days && config.days[day]) {
+            const label = day.charAt(0).toUpperCase() + day.slice(1);
+            summaryLines.push(`${label} Rates: ${formatDaytimeSummary(config.days[day])}`);
+        }
+    });
+
+    rateDisplay.textContent = summaryLines.join("\n");
+} else {
+          rateDisplay.textContent = `Rates for ${customer} at ${terminal}:
+` + config.slots.map(s => `${s.start}–${s.end}: $${s.rate}`).join(" | ");
+        }
+      }
+    }
+
+    document.addEventListener("ratesUpdated", refreshRateDisplay);
+
+    terminalSelect.addEventListener("change", () => {
+      customerSelect.value = "";
+      customerSelect.disabled = !terminalSelect.value;
+      refreshRateDisplay();
+      uploadedWorkbook = null;
+      downloadButton.disabled = true;
+      status.textContent = "";
+    });
+
+    customerSelect.addEventListener("change", () => {
+      refreshRateDisplay();
+      uploadedWorkbook = null;
+      downloadButton.disabled = true;
+      status.textContent = "";
+    });
+
+    uploadButton.addEventListener("click", () => {
+      if (!terminalSelect.value || !customerSelect.value) {
+        status.textContent = "Please select terminal and customer.";
+        return;
+      }
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        uploadedWorkbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+        downloadButton.disabled = false;
+        uploadedTerminal = terminalSelect.value;
+        status.textContent = `File "${file.name}" ready.`;
+      } catch (e) {
+        status.textContent = "Error reading file.";
+      }
+    });
+
+    downloadButton.addEventListener("click", () => {
+      const terminal = terminalSelect.value;
+      const customer = customerSelect.value;
+      const isGroupB = groupBTerminals.includes(terminal);
+      const config = isGroupB ? configGroupB : configGroupA;
+
+      let flatRate = null, groupARateConfig = null;
+      if (isGroupB) {
+        flatRate = getRate(terminal, customer);
+        if (flatRate === null) return (status.textContent = "No rate set.");
+      } else {
+        groupARateConfig = getGroupARateConfig(terminal, customer);
+        if (!groupARateConfig) return (status.textContent = "No rates set.");
+      }
+
+      try {
+        const worksheet = uploadedWorkbook.Sheets[uploadedWorkbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        const headerRowIndex = config.fixedHeaderRowIndex !== null ? config.fixedHeaderRowIndex : detectHeaderRowIndex(rows, config.columns);
+        const headerRow = rows[headerRowIndex] || [];
+        const dataRows = rows.slice(headerRowIndex + 1).filter(r => config.columns.some(i => String(r[i] ?? "").trim() !== ""));
+
+        const headers = ["S/N"];
+        if (config.includeTerminal) headers.push("Terminal");
+        headers.push("Customer");
+        
+        config.columns.forEach(ci => {
+          const h = String(headerRow[ci] ?? "").trim() || "Col";
+          headers.push(h);
+          if (h.toLowerCase().includes("date") && !headers.includes("Rate")) headers.push("Rate");
+        });
+        if (!headers.includes("Rate")) headers.push("Rate");
+        const rateIdx = headers.indexOf("Rate");
+        const dateColIdx = config.columns.find(ci => String(headerRow[ci] ?? "").toLowerCase().includes("date"));
+
+        const output = dataRows.map((row, ri) => {
+          const res = [ri + 1];
+          if (config.includeTerminal) res.push(terminal);
+          res.push(customer);
+          const rRate = isGroupB ? flatRate : pickGroupARate(groupARateConfig, dateColIdx !== undefined ? row[dateColIdx] : null, row[GROUP_A_TIME_COLUMN_INDEX]);
+          config.columns.forEach(ci => {
+            let v = row[ci];
+            if (v instanceof Date) v = XLSX.SSF.format("yyyy-mm-dd hh:mm", v);
+            res.push(v ?? "");
+            if (res.length === rateIdx) res.push(rRate);
+          });
+          if (res.length < headers.length) res.push(rRate);
+          return res;
+        });
+
+        const os = XLSX.utils.aoa_to_sheet([headers, ...output]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, os, "Data");
+        XLSX.writeFile(wb, `${terminal}_${customer}_data.xlsx`);
+      } catch (e) { status.textContent = "Process error."; }
+    });
+
+    const ratesCustomerSelect = document.getElementById("ratesCustomerSelect");
+    const ratesContainer = document.getElementById("ratesContainer");
+    const editRatesButton = document.getElementById("editRatesButton");
+    const saveRatesButton = document.getElementById("saveRatesButton");
+    const cancelRatesButton = document.getElementById("cancelRatesButton");
+    const ratesStatus = document.getElementById("ratesStatus");
+
+    const ALL_TERMINALS = ["Centerm", "Fraser Surrey Dock", "Vanterm", "Delta Port"];
+    const DAY_LABELS = { weekday: "Weekday", saturday: "Saturday", sunday: "Sunday" };
+    let ratesEditMode = false;
+
+    function renderRatesScreen() {
+      const customer = ratesCustomerSelect.value;
+      ratesContainer.innerHTML = "";
+      if (!customer) {
+        [editRatesButton, saveRatesButton, cancelRatesButton].forEach(b => b.hidden = true);
+        return;
+      }
+      let html = "";
+      for (const terminal of ALL_TERMINALS) {
+        html += `<div class="terminal-block"><h3>${terminal}</h3>`;
+        if (groupBTerminals.includes(terminal)) {
+          const r = getRate(terminal, customer);
+          html += ratesEditMode ? `<label>Rate: $ <input type="number" step="0.01" class="rate-input" data-kind="flat" data-terminal="${terminal}" value="${(r !== null && r !== undefined) ? r : ""}"/></label>` : `<p>Rate: ${r !== null ? "$" + r : "Not set"}</p>`;
+        } else {
+          const config = getGroupARateConfig(terminal, customer);
+          if (!config) html += "<p>No rates set.</p>";
+          else if (config.type === "daytime") {
+            const keys = Object.keys(config.days.weekday || {}).sort((a,b) => Number(a.split("-")[0]) - Number(b.split("-")[0]));
+            html += `<div class="table-container"><table class="rates-table"><tr><th>Day</th>${keys.map(k => `<th>${k}</th>`).join("")}</tr>`;
+            for (const d of Object.keys(DAY_LABELS)) {
+              html += `<tr><td>${DAY_LABELS[d]}</td>${keys.map(k => `<td>${ratesEditMode ? `<input type="number" step="0.01" data-kind="daytime" data-terminal="${terminal}" data-day="${d}" data-slot="${k}" value="${(config.days[d][k] !== undefined && config.days[d][k] !== null) ? config.days[d][k] : ""}"/>` : (config.days[d][k] !== undefined ? "$"+config.days[d][k] : "—")}</td>`).join("")}</tr>`;
+            }
+            html += "</table></div>";
+          } else {
+            html += `<div class="table-container"><table class="rates-table"><tr><th>Time slot</th><th>Rate</th></tr>${config.slots.map((s, i) => `<tr><td>${s.start} – ${s.end}</td><td>${ratesEditMode ? `<input type="number" step="0.01" data-kind="slot" data-terminal="${terminal}" data-slot-index="${i}" value="${(s.rate !== null && s.rate !== undefined) ? s.rate : ""}"/>` : "$"+s.rate}</td></tr>`).join("")}</table></div>`;
+          }
+        }
+        html += "</div>";
+      }
+      ratesContainer.innerHTML = html;
+      editRatesButton.hidden = ratesEditMode;
+      saveRatesButton.hidden = !ratesEditMode;
+      cancelRatesButton.hidden = !ratesEditMode;
+    }
+
+    ratesCustomerSelect.addEventListener("change", () => { ratesEditMode = false; renderRatesScreen(); });
+    editRatesButton.addEventListener("click", () => { ratesEditMode = true; renderRatesScreen(); });
+    cancelRatesButton.addEventListener("click", () => { ratesEditMode = false; renderRatesScreen(); });
+    saveRatesButton.addEventListener("click", async () => {
+      const changes = {};
+      ratesContainer.querySelectorAll("input[data-kind]").forEach(input => {
+        const { kind, terminal, day, slot, slotIndex } = input.dataset;
+        const v = Number(input.value.trim());
+        if (isNaN(v) || input.value.trim() === "") return;
+        if (kind === "flat") changes[`rates/${terminal}/${ratesCustomerSelect.value}`] = v;
+        else if (kind === "daytime") changes[`ratesGroupA/${terminal}/${ratesCustomerSelect.value}/days/${day}/${slot}`] = v;
+        else if (kind === "slot") changes[`ratesGroupA/${terminal}/${ratesCustomerSelect.value}/slots/${slotIndex}/rate`] = v;
+      });
+      if (Object.keys(changes).length) {
+        await window.firebaseUpdateRates(changes);
+        ratesStatus.textContent = "Rates updated.";
+      }
+      ratesEditMode = false;
+      renderRatesScreen();
+    });
+
+    document.addEventListener("ratesUpdated", () => { if (!ratesEditMode) renderRatesScreen(); });
+  </script>
+</body>
+</html>
