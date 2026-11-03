@@ -571,21 +571,52 @@
       return timeStringToMinutes(value);
     }
 
-    function extractDate(value) {
-      if (value instanceof Date && !isNaN(value)) return value;
-      if (typeof value === "number" && value > 0) return new Date(Math.round((value - 25569) * 86400 * 1000));
-      const parsed = new Date(String(value));
-      return isNaN(parsed) ? null : parsed;
-    }
+function extractDate(value) {
+  const text = String(value ?? "").trim();
 
-    function dayTypeOf(dateValue) {
-      const d = extractDate(dateValue);
-      if (!d) return null;
-      const day = d.getDay();
-      if (day === 0) return "sunday";
-      if (day === 6) return "saturday";
-      return "weekday";
-    }
+  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+
+  let year = Number(match[3]);
+  if (year < 100) year += 2000;
+
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatDateForOutput(value) {
+  const date = extractDate(value);
+  if (!date) return value ?? "";
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+function dayTypeOf(dateValue) {
+  const date = extractDate(dateValue);
+  if (!date) return null;
+
+  const day = date.getDay();
+  if (day === 0) return "sunday";
+  if (day === 6) return "saturday";
+  return "weekday";
+}
+
 
     function pickSlotRate(slots, cellValue) {
       const minutes = extractMinutes(cellValue);
@@ -608,12 +639,19 @@
       for (const key of Object.keys(dayRates)) {
         const match = key.match(/^(\d{1,2})-(\d{1,2})$/);
         if (!match) continue;
+		console.log(Number(dayRates[key]));
         if (minutes >= Number(match[1]) * 60 && minutes < Number(match[2]) * 60) return Number(dayRates[key]);
       }
       return "";
     }
 
     function pickGroupARate(rateConfig, dateValue, timeValue) {
+	console.log({
+  dateValue,
+  parsedDate: extractDate(dateValue),
+  dayType: dayTypeOf(dateValue),
+  timeValue
+});
       return rateConfig.type === "daytime" ? pickDaytimeRate(rateConfig, dateValue, timeValue) : pickSlotRate(rateConfig.slots, timeValue);
     }
 
@@ -694,7 +732,7 @@
       const file = fileInput.files[0];
       if (!file) return;
       try {
-        uploadedWorkbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+        uploadedWorkbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
         downloadButton.disabled = false;
         uploadedTerminal = terminalSelect.value;
         status.textContent = `File "${file.name}" ready.`;
@@ -725,33 +763,91 @@
         const headerRow = rows[headerRowIndex] || [];
         const dataRows = rows.slice(headerRowIndex + 1).filter(r => config.columns.some(i => String(r[i] ?? "").trim() !== ""));
 
-        const headers = ["S/N"];
-        if (config.includeTerminal) headers.push("Terminal");
-        headers.push("Customer");
-        
-        config.columns.forEach(ci => {
-          const h = String(headerRow[ci] ?? "").trim() || "Col";
-          headers.push(h);
-          if (h.toLowerCase().includes("date") && !headers.includes("Rate")) headers.push("Rate");
-        });
-        if (!headers.includes("Rate")) headers.push("Rate");
-        const rateIdx = headers.indexOf("Rate");
-        const dateColIdx = config.columns.find(ci => String(headerRow[ci] ?? "").toLowerCase().includes("date"));
+       const dateColIdx = config.columns.find(ci =>
+  String(headerRow[ci] ?? "").trim().toLowerCase().includes("date")
+);
 
-        const output = dataRows.map((row, ri) => {
-          const res = [ri + 1];
-          if (config.includeTerminal) res.push(terminal);
-          res.push(customer);
-          const rRate = isGroupB ? flatRate : pickGroupARate(groupARateConfig, dateColIdx !== undefined ? row[dateColIdx] : null, row[GROUP_A_TIME_COLUMN_INDEX]);
-          config.columns.forEach(ci => {
-            let v = row[ci];
-            if (v instanceof Date) v = XLSX.SSF.format("yyyy-mm-dd hh:mm", v);
-            res.push(v ?? "");
-            if (res.length === rateIdx) res.push(rRate);
-          });
-          if (res.length < headers.length) res.push(rRate);
-          return res;
-        });
+const headers = ["S/N"];
+if (config.includeTerminal) headers.push("Terminal");
+headers.push("Customer");
+
+let rateInserted = false;
+
+config.columns.forEach(ci => {
+  const h = String(headerRow[ci] ?? "").trim() || "Col";
+  headers.push(h);
+
+  if (ci === dateColIdx) {
+    headers.push("Rate");
+    rateInserted = true;
+  }
+});
+
+if (!rateInserted) headers.push("Rate");
+
+const rateIdx = headers.indexOf("Rate");
+
+const output = dataRows.map((row, ri) => {
+  const res = [ri + 1];
+
+  if (config.includeTerminal) res.push(terminal);
+  res.push(customer);
+
+let dateValueForRating =
+    dateColIdx !== undefined ? row[dateColIdx] : null;
+
+// Use displayed cell text if available
+if (dateColIdx !== undefined) {
+    const sheetRowIndex = headerRowIndex + 1 + ri;
+
+    const cellAddress = XLSX.utils.encode_cell({
+        r: sheetRowIndex,
+        c: dateColIdx
+    });
+
+    const cell = worksheet[cellAddress];
+
+    if (cell?.w) {
+        dateValueForRating = cell.w;
+    }
+}
+console.log({
+    rawValue: row[dateColIdx],
+    displayText: dateValueForRating
+});
+const rate = isGroupB
+    ? flatRate
+    : pickGroupARate(
+        groupARateConfig,
+        dateValueForRating,
+        row[GROUP_A_TIME_COLUMN_INDEX]
+      );
+
+  config.columns.forEach(ci => {
+    let value = row[ci];
+
+    if (ci === dateColIdx) {
+      value = formatDateForOutput(value);
+    } else if (value instanceof Date) {
+      value = XLSX.SSF.format("yyyy-mm-dd hh:mm", value);
+    }
+
+    res.push(value ?? "");
+
+    // Put each rate immediately after the date value
+    if (ci === dateColIdx) {
+      res.push(rate);
+    }
+  });
+
+  // If no date column was found, put Rate at the end
+  if (dateColIdx === undefined) {
+    res.push(rate);
+  }
+
+  return res;
+});
+
 
         // Calculate total of all Rate values
 const totalRate = output.reduce((sum, row) => {
@@ -765,8 +861,23 @@ const totalRow = new Array(headers.length).fill("");
 totalRow[rateIdx - 1] = "Total";
 totalRow[rateIdx] = totalRate;
 
-// Create worksheet including Total row
+// Find Booking/EDO column
+const bookingColumnIndex = headerRow.findIndex(h =>
+    String(h || "").toLowerCase().includes("booking")
+);
+
+// Get first booking number from data
+const bookingNumber =
+    bookingColumnIndex >= 0 && dataRows.length
+        ? dataRows[0][bookingColumnIndex]
+        : "";
+
+const titleRow = [
+    `${terminal} Drop Off-BK ${bookingNumber}`
+];
+
 const os = XLSX.utils.aoa_to_sheet([
+    titleRow,
     headers,
     ...output,
     totalRow
@@ -774,7 +885,10 @@ const os = XLSX.utils.aoa_to_sheet([
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, os, "Data");
         XLSX.writeFile(wb, `${terminal}_${customer}_data.xlsx`);
-      } catch (e) { status.textContent = "Process error."; }
+      } catch (e) {
+  console.error(e);
+  status.textContent = `Process error: ${e.message}`;
+}
     });
 
     const ratesCustomerSelect = document.getElementById("ratesCustomerSelect");
