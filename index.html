@@ -761,7 +761,22 @@ function dayTypeOf(dateValue) {
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         const headerRowIndex = config.fixedHeaderRowIndex !== null ? config.fixedHeaderRowIndex : detectHeaderRowIndex(rows, config.columns);
         const headerRow = rows[headerRowIndex] || [];
-        const dataRows = rows.slice(headerRowIndex + 1).filter(r => config.columns.some(i => String(r[i] ?? "").trim() !== ""));
+        let dataRows = rows
+  .slice(headerRowIndex + 1)
+  .filter(r => config.columns.some(i => String(r[i] ?? "").trim() !== ""));
+
+// Sort Group A terminals by Time Column F
+if (!isGroupB) {
+  dataRows.sort((a, b) => {
+    const timeA = extractMinutes(a[GROUP_A_TIME_COLUMN_INDEX]);
+    const timeB = extractMinutes(b[GROUP_A_TIME_COLUMN_INDEX]);
+
+    if (timeA === null) return 1;
+    if (timeB === null) return -1;
+
+    return timeA - timeB;
+  });
+}
 
        const dateColIdx = config.columns.find(ci =>
   String(headerRow[ci] ?? "").trim().toLowerCase().includes("date")
